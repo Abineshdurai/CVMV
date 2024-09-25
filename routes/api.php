@@ -116,6 +116,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // ----CVMV Membership
 Route::post('/sendmobileOTP', 'App\Http\Controllers\MembershipController@sendmobileOTP');
+Route::post('/Tsit_Cvmv_Resend_OTP', 'App\Http\Controllers\MembershipController@Tsit_Cvmv_Resend_OTP');
 Route::post('/verifyOTP', 'App\Http\Controllers\MembershipController@verifyOTP');
 Route::post('/validateToken', 'App\Http\Controllers\MembershipController@validateToken');
 Route::post('/create_personal_membership', 'App\Http\Controllers\MembershipController@create_personal_membership');

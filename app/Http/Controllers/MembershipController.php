@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ChildrenModel;
 use App\Models\DistrictModel;
 use Illuminate\Support\Facades\Log;
+use PHPMailer\PHPMailer\Exception;
 
 use App\Models\MemPhonepeResponseModel;
 use App\Models\MembershipModel;
@@ -17,20 +18,198 @@ class MembershipController extends Controller
 {
     public function sendmobileOTP(Request $request)
     {
+        // Validate the incoming request
         $validator = Validator::make($request->all(), [
-            'phone' => 'required|digits:10'
+            'phone' => 'required|digits:10', // Ensure mobile number is required and has exactly 10 digits
         ]);
 
-
         if ($validator->fails()) {
+            // Return validation error messages if validation fails
+            return response()->json(['error' => $validator->errors()], 400); // Return a 400 Bad Request with the error details
+        }
 
-            return response($validator->messages(), 200);
-        } else {
-            $success['message'] = "Mobile OTP sent successfully";
-            $success['success'] = true;
-            return response()->json($success);
+        // Prepare the data for the API call
+        $mobile = $request->input('phone');
+        $url = "https://control.msg91.com/api/v5/otp";
+        $postData = json_encode([
+            "template_id" => "66e2d2d2d6fc055c077f3cc2",
+            "mobile" => "91" . $mobile, // Add country code '91' explicitly for Indian numbers
+            "authkey" => "428784Ay2siioFjk66e2d43cP1",
+            "otp_expiry" => "10", // Example of additional parameter for OTP expiry time
+            "Param1" => "value1", // You can modify Param1, Param2 as per your use case
+        ]);
+
+        try {
+            // Initialize CURL session
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => $url . "?otp_expiry=5&template_id=66e2d2d2d6fc055c077f3cc2&mobile=91" . $mobile . "&authkey=428784Ay2siioFjk66e2d43cP1&realTimeResponse=1",
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => "",
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => "POST",
+                CURLOPT_POSTFIELDS => $postData,
+                CURLOPT_HTTPHEADER => [
+                    "Content-Type: application/json"
+                ],
+            ]);
+
+            // Execute CURL session
+            $response = curl_exec($curl);
+            $err = curl_error($curl);
+            curl_close($curl);
+
+            // Handle CURL error
+            if ($err) {
+                return response()->json(['error' => 'cURL Error #: ' . $err], 500); // Return server error with cURL error message
+            }
+
+            // Convert the response into an associative array and return it
+            $responseData = json_decode($response, true);
+
+            if (isset($responseData['type']) && $responseData['type'] == 'success') {
+                // Return success response
+                return response()->json([
+                    'message' => "OTP sent successfully",
+                    'success' => true
+                ]);
+            } else {
+                // Return failure response from the API
+                return response()->json([
+                    'message' => $responseData['message'] ?? 'Failed to send OTP',
+                    'success' => false
+                ], 500);
+            }
+        } catch (Exception $e) {
+            // Return error response if an exception occurs
+            return response()->json([
+                'message' => "Error sending OTP",
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
+
+    public function verifyOTP(Request $request)
+    {
+        // Validate the incoming request for OTP and phone number
+        $validator = Validator::make($request->all(), [
+            'otp' => 'required|numeric',       // OTP must be a number
+            'phone' => 'required|numeric|digits:10', // Phone must be 10 digits
+        ]);
+
+        if ($validator->fails()) {
+            // Return validation errors if validation fails
+            return response()->json($validator->messages(), 400);
+        }
+
+        $otp = $request->input('otp');
+        $mobile = $request->input('phone');
+
+        try {
+            // Verify OTP via MSG91 API
+            $url = "https://control.msg91.com/api/v5/otp/verify?otp={$otp}&mobile=91{$mobile}";
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => "",
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => "GET",
+                CURLOPT_HTTPHEADER => [
+                    "authkey: 428784Ay2siioFjk66e2d43cP1", // Use your API auth key
+                ],
+            ]);
+
+            // Execute CURL session
+            $response = curl_exec($curl);
+            $err = curl_error($curl);
+            curl_close($curl);
+
+            // Check for CURL errors
+            if ($err) {
+                return response()->json(['error' => 'cURL Error #: ' . $err], 500);
+            }
+
+            // Decode the response from the API
+            $responseData = json_decode($response, true);
+
+            // Check if the OTP verification was successful
+            if (isset($responseData['type']) && $responseData['type'] == 'success') {
+                // Check if the phone is registered in the cvmv_membership table
+                $isRegisteredInMembership = DB::table('cvmv_membership')
+                    ->where('phone', '=', $mobile)
+                    ->exists();
+
+                // Retrieve the matri_user_id from the cvmv_matri_user table
+                $matri_user_id = DB::table('cvmv_matri_user')
+                    ->where('matri_user_phone', '=', $mobile)
+                    ->value('matri_user_id');
+
+                // Initialize tokens
+                $mem_token = null;
+                $matri_token = null;
+
+                // Process cvmv_membership table
+                if ($isRegisteredInMembership) {
+                    $mem_token = tokenKey($mobile);
+                    DB::table('cvmv_membership')
+                        ->where('phone', '=', $mobile)
+                        ->update(["mem_token" => $mem_token]);
+
+                    if (!$mem_token) {
+                        return response()->json(['message' => "Failed to update membership token", 'success' => false], 500);
+                    }
+                }
+
+                // Process cvmv_matri_user table
+                if ($matri_user_id) {
+                    $matri_token = tokenKey($matri_user_id);
+                    DB::table('cvmv_matri_user')
+                        ->where('matri_user_phone', '=', $mobile)
+                        ->update(["matri_token" => $matri_token]);
+
+                    if (!$matri_token) {
+                        return response()->json(['message' => "Failed to update matrimony token", 'success' => false], 500);
+                    }
+                }
+
+                // If both updates are successful, return success response
+                $success = [
+                    'success' => true,
+                    'message' => "Login success"
+                ];
+                if ($mem_token) {
+                    $success['mem_token'] = $mem_token;
+                }
+                if ($matri_token) {
+                    $success['matri_token'] = $matri_token;
+                }
+
+                return response()->json($success);
+
+            } else {
+                // If OTP verification fails, return the failure message
+                return response()->json([
+                    'message' => $responseData['message'] ?? 'OTP verification failed',
+                    'success' => false
+                ], 400);
+            }
+
+        } catch (Exception $e) {
+            // Return error response if an exception occurs
+            return response()->json([
+                'message' => "Error verifying OTP",
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 
     // public function verifyOTP(Request $request)
     // {
@@ -40,119 +219,140 @@ class MembershipController extends Controller
     //     ]);
 
     //     if ($validator->fails()) {
-
-    //         return response($validator->messages(), 200);
+    //         return response()->json($validator->messages(), 400);
     //     } else {
     //         $otp = $request->input('otp');
     //         $mobile = $request->input('phone');
 
-    //         $isregister = DB::table('cvmv_membership')
-    //             ->select('phone')
+    //         // Check if the phone is registered in the cvmv_membership table
+    //         $isRegisteredInMembership = DB::table('cvmv_membership')
     //             ->where('phone', '=', $mobile)
-    //             ->value('phone');
+    //             ->exists();
 
-    //         if (!$isregister) {
-    //             $success['message'] = "Not registered";
-    //             $success['success'] = true;
-    //             return response()->json($success);
-    //         } else {
+    //         // Retrieve the matri_user_id from the cvmv_matri_user table
+    //         $matri_user_id = DB::table('cvmv_matri_user')
+    //             ->where('matri_user_phone', '=', $mobile)
+    //             ->value('matri_user_id');
+
+    //         // Initialize tokens
+    //         $mem_token = null;
+    //         $matri_token = null;
+
+    //         // Process cvmv_membership table
+    //         if ($isRegisteredInMembership) {
     //             $mem_token = tokenKey($mobile);
-    //             $update1 = DB::table('cvmv_membership')
+    //             $updateMemToken1 = DB::table('cvmv_membership')
     //                 ->where('phone', '=', $mobile)
-    //                 ->update(["mem_token" => '1']);
-    //             $update = DB::table('cvmv_membership')
+    //                 ->update(["mem_token" => "1"]);
+    //             $updateMemToken = DB::table('cvmv_membership')
     //                 ->where('phone', '=', $mobile)
     //                 ->update(["mem_token" => $mem_token]);
 
-    //             if (!$update) {
-    //                 $fail['message'] = "Authentication failed";
+    //             if (!$updateMemToken) {
+    //                 $fail['message'] = "Failed to update membership token";
     //                 $fail['success'] = false;
     //                 return response()->json($fail);
-    //             } else {
-    //                 $success['success'] = true;
-    //                 $success['message'] = "login success";
-    //                 $success['mem_token'] = $mem_token;
-    //                 return response()->json($success);
     //             }
     //         }
+
+    //         // Process cvmv_matri_user table
+    //         if ($matri_user_id) {
+    //             $matri_token = tokenKey($matri_user_id);
+    //             $updateMatriToken1 = DB::table('cvmv_matri_user')
+    //                 ->where('matri_user_phone', '=', $mobile)
+    //                 ->update(["matri_token" => "1"]);
+    //             $updateMatriToken = DB::table('cvmv_matri_user')
+    //                 ->where('matri_user_phone', '=', $mobile)
+    //                 ->update(["matri_token" => $matri_token]);
+
+    //             if (!$updateMatriToken) {
+    //                 $fail['message'] = "Failed to update matrimony token";
+    //                 $fail['success'] = false;
+    //                 return response()->json($fail);
+    //             }
+    //         }
+
+    //         // If both updates are successful, return success response
+    //         $success['success'] = true;
+    //         $success['message'] = "Login success";
+    //         if ($mem_token) {
+    //             $success['mem_token'] = $mem_token;
+    //         }
+    //         if ($matri_token) {
+    //             $success['matri_token'] = $matri_token;
+    //         }
+
+    //         return response()->json($success);
     //     }
     // }
 
+    public function Tsit_Cvmv_Resend_OTP(Request $request)
+{
+    // Validate the incoming request
+    $validator = Validator::make($request->all(), [
+        'phone' => 'required|digits:10', // Mobile number must be exactly 10 digits
+    ]);
 
-    public function verifyOTP(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'otp' => 'required|numeric',
-            'phone' => 'required|numeric|digits:10',
+    // Handle validation errors
+    if ($validator->fails()) {
+        return response()->json(['error' => $validator->errors()], 400); // Return a 400 Bad Request with validation errors
+    }
+
+    // Extract the mobile number from the request
+    $mobile = $request->input('phone');
+
+    try {
+        // Set up the URL with the mobile number and API key
+        $url = "https://control.msg91.com/api/v5/otp/retry?authkey=428784Ay2siioFjk66e2d43cP1&retrytype=text&mobile=91{$mobile}";
+
+        // Initialize cURL
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "GET",
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->messages(), 400);
-        } else {
-            $otp = $request->input('otp');
-            $mobile = $request->input('phone');
+        // Execute the cURL request
+        $response = curl_exec($curl);
+        $err = curl_error($curl);
+        curl_close($curl);
 
-            // Check if the phone is registered in the cvmv_membership table
-            $isRegisteredInMembership = DB::table('cvmv_membership')
-                ->where('phone', '=', $mobile)
-                ->exists();
-
-            // Retrieve the matri_user_id from the cvmv_matri_user table
-            $matri_user_id = DB::table('cvmv_matri_user')
-                ->where('matri_user_phone', '=', $mobile)
-                ->value('matri_user_id');
-
-            // Initialize tokens
-            $mem_token = null;
-            $matri_token = null;
-
-            // Process cvmv_membership table
-            if ($isRegisteredInMembership) {
-                $mem_token = tokenKey($mobile);
-                $updateMemToken1 = DB::table('cvmv_membership')
-                    ->where('phone', '=', $mobile)
-                    ->update(["mem_token" => "1"]);
-                $updateMemToken = DB::table('cvmv_membership')
-                    ->where('phone', '=', $mobile)
-                    ->update(["mem_token" => $mem_token]);
-
-                if (!$updateMemToken) {
-                    $fail['message'] = "Failed to update membership token";
-                    $fail['success'] = false;
-                    return response()->json($fail);
-                }
-            }
-
-            // Process cvmv_matri_user table
-            if ($matri_user_id) {
-                $matri_token = tokenKey($matri_user_id);
-                $updateMatriToken1 = DB::table('cvmv_matri_user')
-                    ->where('matri_user_phone', '=', $mobile)
-                    ->update(["matri_token" => "1"]);
-                $updateMatriToken = DB::table('cvmv_matri_user')
-                    ->where('matri_user_phone', '=', $mobile)
-                    ->update(["matri_token" => $matri_token]);
-
-                if (!$updateMatriToken) {
-                    $fail['message'] = "Failed to update matrimony token";
-                    $fail['success'] = false;
-                    return response()->json($fail);
-                }
-            }
-
-            // If both updates are successful, return success response
-            $success['success'] = true;
-            $success['message'] = "Login success";
-            if ($mem_token) {
-                $success['mem_token'] = $mem_token;
-            }
-            if ($matri_token) {
-                $success['matri_token'] = $matri_token;
-            }
-
-            return response()->json($success);
+        // Handle cURL errors
+        if ($err) {
+            return response()->json(['error' => 'cURL Error #: ' . $err], 500); // Return a 500 Internal Server Error
         }
+
+        // Decode the API response
+        $responseData = json_decode($response, true);
+
+        // Check if the resend OTP request was successful
+        if (isset($responseData['type']) && $responseData['type'] == 'success') {
+            return response()->json([
+                'success' => true,
+                'message' => 'OTP resent successfully',
+            ]);
+        } else {
+            // If the API response indicates failure, return the error message
+            return response()->json([
+                'success' => false,
+                'message' => $responseData['message'] ?? 'Failed to resend OTP',
+            ], 400);
+        }
+
+    } catch (Exception $e) {
+        // Handle any exceptions that occur
+        return response()->json([
+            'error' => 'An error occurred while resending the OTP: ' . $e->getMessage(),
+            'success' => false,
+        ], 500);
     }
+}
+
 
 
     // public function validateToken(Request $request)
