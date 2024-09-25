@@ -506,6 +506,13 @@ class MatrimonyController extends Controller
             )
             ->get();
 
+            if(!$matrimony_records)
+            {
+                $success ['message'] = 'Add the Details';
+                $success ['success'] = false;
+                return response()->json([$success]);
+            } else {
+
         $matrimony_details_with_images = $matrimony_records->map(function ($matrimony) {
             $matrimony_images = MatrimonyImagesModel::where('matri_id', $matrimony->matri_id)
                 ->where('status', 'active')
@@ -545,6 +552,7 @@ class MatrimonyController extends Controller
             "matri_user_details" => $matri_user,
             "matrimony_records" => $matrimony_details_with_images,
         ]);
+    }
     }
 
 

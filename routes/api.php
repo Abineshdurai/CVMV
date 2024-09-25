@@ -158,3 +158,7 @@ Route::post('/Tsit_Cvmv_Filter_Matrimony/{filter}', 'App\Http\Controllers\Matrim
 // -----> CVMV Version
 Route::post('/Tsit_Cvmv_Add_Version', 'App\Http\Controllers\VersionController@Tsit_Cvmv_Add_Version');
 Route::post('/Tsit_Cvmv_Check_Version/{version_name}/{version_code}', 'App\Http\Controllers\VersionController@Tsit_Cvmv_Check_Version');
+
+
+// --------> CVMV Email Verification
+Route::post('Tsit_Cvmv_Sent_EmailOTP', 'App\Http\Controllers\EmailVerificationController@Tsit_Cvmv_Sent_EmailOTP');

@@ -8,4 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 class EmailVerificationModel extends Model
 {
     use HasFactory;
+    public $timestamps = false;
+
+    protected $table = 'cvmv_email_verification';
+
+    protected $fillable = [
+        'email', 'otp', 'created_at',
+    ];
 }

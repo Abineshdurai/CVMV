@@ -1391,22 +1391,17 @@ class MembershipController extends Controller
 
     public function get_native_members(Request $request, $location_id)
     {
-        $location = DB::table('cvmv_location')
-            ->where('location_id', $location_id)
-            ->first();
+        $nativePlaceEng = $request->input('native_place_eng');
+        $nativePlaceTam = $request->input('native_place_tam');
 
-        if (!$location) {
-            return response()->json([
-                'message' => 'No Member found in this location',
-                'success' => false
-            ], 404);
-        } else {
-            $members = MembershipModel::where(function ($query) use ($location) {
-                $query->where('native_place', $location->native_place)
-                    ->orWhere('native_place', $location->native_place_tam);
+        // Query to find members based on either English or Tamil native place
+        $members = DB::table('cvmv_membership')
+            ->where(function ($query) use ($nativePlaceEng, $nativePlaceTam) {
+                $query->where('native_place', $nativePlaceEng)
+                      ->orWhere('native_place', $nativePlaceTam);
             })
-                ->get();
-
+            ->where('approval_status', 'approved')
+            ->get();
             if ($members->isEmpty()) {
                 return response()->json([
                     'message' => 'No members found for the specified native place',
@@ -1461,4 +1456,4 @@ class MembershipController extends Controller
             ], 200);
         }
     }
-}
+
