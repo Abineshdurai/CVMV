@@ -153,7 +153,8 @@ Route::post('/Tsit_Cvmv_Edit_Matrimony/{matri_id}', 'App\Http\Controllers\Matrim
 Route::post('/Tsit_Cvmv_Edit_Matri_images/{matri_img_id}', 'App\Http\Controllers\MatrimonyController@Tsit_Cvmv_Edit_Matri_images');
 Route::post('/Tsit_Cvmv_Get_Matri_User_Profile/{matri_token}', 'App\Http\Controllers\MatrimonyController@Tsit_Cvmv_Get_Matri_User_Profile');
 Route::post('/Tsit_Cvmv_Create_Matrimony_temp', 'App\Http\Controllers\MatrimonyController@Tsit_Cvmv_Create_Matrimony_temp');
-Route::post('/Tsit_Cvmv_Filter_Matrimony/{filter}', 'App\Http\Controllers\MatrimonyController@Tsit_Cvmv_Filter_Matrimony');
+Route::post('/Tsit_Cvmv_Search_Matrimony', 'App\Http\Controllers\MatrimonyController@Tsit_Cvmv_Search_Matrimony');
+Route::post('/Tsit_Cvmv_Filter_Matrimony', 'App\Http\Controllers\MatrimonyController@Tsit_Cvmv_Filter_Matrimony');
 
 
 // -----> CVMV Version

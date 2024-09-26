@@ -191,7 +191,6 @@ class MembershipController extends Controller
                 }
 
                 return response()->json($success);
-
             } else {
                 // If OTP verification fails, return the failure message
                 return response()->json([
@@ -199,7 +198,6 @@ class MembershipController extends Controller
                     'success' => false
                 ], 400);
             }
-
         } catch (Exception $e) {
             // Return error response if an exception occurs
             return response()->json([
@@ -287,71 +285,70 @@ class MembershipController extends Controller
     // }
 
     public function Tsit_Cvmv_Resend_OTP(Request $request)
-{
-    // Validate the incoming request
-    $validator = Validator::make($request->all(), [
-        'phone' => 'required|digits:10', // Mobile number must be exactly 10 digits
-    ]);
-
-    // Handle validation errors
-    if ($validator->fails()) {
-        return response()->json(['error' => $validator->errors()], 400); // Return a 400 Bad Request with validation errors
-    }
-
-    // Extract the mobile number from the request
-    $mobile = $request->input('phone');
-
-    try {
-        // Set up the URL with the mobile number and API key
-        $url = "https://control.msg91.com/api/v5/otp/retry?authkey=428784Ay2siioFjk66e2d43cP1&retrytype=text&mobile=91{$mobile}";
-
-        // Initialize cURL
-        $curl = curl_init();
-        curl_setopt_array($curl, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "GET",
+    {
+        // Validate the incoming request
+        $validator = Validator::make($request->all(), [
+            'phone' => 'required|digits:10', // Mobile number must be exactly 10 digits
         ]);
 
-        // Execute the cURL request
-        $response = curl_exec($curl);
-        $err = curl_error($curl);
-        curl_close($curl);
-
-        // Handle cURL errors
-        if ($err) {
-            return response()->json(['error' => 'cURL Error #: ' . $err], 500); // Return a 500 Internal Server Error
+        // Handle validation errors
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()], 400); // Return a 400 Bad Request with validation errors
         }
 
-        // Decode the API response
-        $responseData = json_decode($response, true);
+        // Extract the mobile number from the request
+        $mobile = $request->input('phone');
 
-        // Check if the resend OTP request was successful
-        if (isset($responseData['type']) && $responseData['type'] == 'success') {
-            return response()->json([
-                'success' => true,
-                'message' => 'OTP resent successfully',
+        try {
+            // Set up the URL with the mobile number and API key
+            $url = "https://control.msg91.com/api/v5/otp/retry?authkey=428784Ay2siioFjk66e2d43cP1&retrytype=text&mobile=91{$mobile}";
+
+            // Initialize cURL
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => "",
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => "GET",
             ]);
-        } else {
-            // If the API response indicates failure, return the error message
-            return response()->json([
-                'success' => false,
-                'message' => $responseData['message'] ?? 'Failed to resend OTP',
-            ], 400);
-        }
 
-    } catch (Exception $e) {
-        // Handle any exceptions that occur
-        return response()->json([
-            'error' => 'An error occurred while resending the OTP: ' . $e->getMessage(),
-            'success' => false,
-        ], 500);
+            // Execute the cURL request
+            $response = curl_exec($curl);
+            $err = curl_error($curl);
+            curl_close($curl);
+
+            // Handle cURL errors
+            if ($err) {
+                return response()->json(['error' => 'cURL Error #: ' . $err], 500); // Return a 500 Internal Server Error
+            }
+
+            // Decode the API response
+            $responseData = json_decode($response, true);
+
+            // Check if the resend OTP request was successful
+            if (isset($responseData['type']) && $responseData['type'] == 'success') {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'OTP resent successfully',
+                ]);
+            } else {
+                // If the API response indicates failure, return the error message
+                return response()->json([
+                    'success' => false,
+                    'message' => $responseData['message'] ?? 'Failed to resend OTP',
+                ], 400);
+            }
+        } catch (Exception $e) {
+            // Handle any exceptions that occur
+            return response()->json([
+                'error' => 'An error occurred while resending the OTP: ' . $e->getMessage(),
+                'success' => false,
+            ], 500);
+        }
     }
-}
 
 
 
@@ -385,40 +382,39 @@ class MembershipController extends Controller
     // }
 
     public function validateToken(Request $request)
-{
-    // Get both tokens from the request
-    $memToken = $request->input('mem_token');
-    $matriToken = $request->input('matri_token');
+    {
+        // Get both tokens from the request
+        $memToken = $request->input('mem_token');
+        $matriToken = $request->input('matri_token');
 
-    // Check if both tokens are provided
-    if (!$memToken || !$matriToken) {
-        return response()->json(['success' => false, 'message' => 'Both tokens must be provided'], 400);
-    }
+        // Check if both tokens are provided
+        if (!$memToken || !$matriToken) {
+            return response()->json(['success' => false, 'message' => 'Both tokens must be provided'], 400);
+        }
 
-    // Validate mem_token
-    $isMemTokenValid = DB::table('cvmv_membership')
-        ->where('mem_token', $memToken)
-        ->exists();
+        // Validate mem_token
+        $isMemTokenValid = DB::table('cvmv_membership')
+            ->where('mem_token', $memToken)
+            ->exists();
 
-    // Validate matri_token
-    $isMatriTokenValid = DB::table('cvmv_matri_user')
-        ->where('matri_token', $matriToken)
-        ->exists();
+        // Validate matri_token
+        $isMatriTokenValid = DB::table('cvmv_matri_user')
+            ->where('matri_token', $matriToken)
+            ->exists();
 
-    // Check if both tokens are valid
-    if ($isMemTokenValid && $isMatriTokenValid) {
-        return response()->json(['success' => true, 'message' => 'Both tokens are valid'], 200);
+        // Check if both tokens are valid
+        if ($isMemTokenValid && $isMatriTokenValid) {
+            return response()->json(['success' => true, 'message' => 'Both tokens are valid'], 200);
+        }
+        if ($isMemTokenValid) {
+            return response()->json(['success' => true, 'message' => 'Mem Token token is valid'], 200);
+        }
+        if ($isMatriTokenValid) {
+            return response()->json(['success' => true, 'message' => 'Matri Token token is valid'], 200);
+        } else {
+            return response()->json(['success' => true, 'message' => 'One or both tokens are invalid'], 401);
+        }
     }
-    if ($isMemTokenValid) {
-        return response()->json(['success' => true, 'message' => 'Mem Token token is valid'], 200);
-    }
-    if ($isMatriTokenValid) {
-        return response()->json(['success' => true, 'message' => 'Matri Token token is valid'], 200);
-    }
-     else {
-        return response()->json(['success' => true, 'message' => 'One or both tokens are invalid'], 401);
-    }
-}
 
 
 
@@ -982,9 +978,9 @@ class MembershipController extends Controller
                 // Fetch children details for the current member
                 $children = DB::table('cvmv_children')
                     ->where('mem_id', $member->mem_id)
-                    ->get(['children_name', 'relation', 'children_dob', 'children_education', 'children_professional' ]);
+                    ->get(['children_name', 'relation', 'children_dob', 'children_education', 'children_professional']);
 
-               // $location_id = DistrictModel::where('location_id', $member->)
+                // $location_id = DistrictModel::where('location_id', $member->)
 
                 // Add member and children details to the results array
                 $results[] = [
@@ -1028,7 +1024,6 @@ class MembershipController extends Controller
                 'data' => $results,
                 'offset' => $offset + count($results), // Provide next offset for pagination
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'An error occurred while fetching records',
@@ -1598,62 +1593,61 @@ class MembershipController extends Controller
         $members = DB::table('cvmv_membership')
             ->where(function ($query) use ($nativePlaceEng, $nativePlaceTam) {
                 $query->where('native_place', $nativePlaceEng)
-                      ->orWhere('native_place', $nativePlaceTam);
+                    ->orWhere('native_place', $nativePlaceTam);
             })
             ->where('approval_status', 'approved')
             ->get();
-            if ($members->isEmpty()) {
-                return response()->json([
-                    'message' => 'No members found for the specified native place',
-                    'success' => false
-                ], 404);
-            }
-            // Prepare the result
-            $result = [];
-            foreach ($members as $member) {
-                $member_image = !empty($member->member_image)
-                    ? 'E:\wamp64\www\cvmv\cvmv\uploads\images\member_images/' . $member->member_image
-                    : '';
-                $result[] = [
-                    "mem_id" => $member->mem_id,
-                    "first_name" => $member->first_name,
-                    "last_name" => $member->last_name,
-                    "phone" => $member->phone,
-                    "gender" => $member->gender,
-                    "date_of_birth" => $member->date_of_birth,
-                    "father_name" => $member->father_name,
-                    "mother_name" => $member->mother_name,
-                    "qualification" => $member->qualification,
-                    "job_designation" => $member->job_designation,
-                    "marriage_date" => $member->marriage_date,
-                    "blood_group" => $member->blood_group,
-                    "vagaiyara" => $member->vagaiyara,
-                    "kula_deivam" => $member->kula_deivam,
-                    "temple_place" => $member->temple_place,
-                    "district" => $member->district,
-                    "native_place" => $member->native_place,
-                    "address" => $member->address,
-                    "wife_name" => $member->wife_name,
-                    "wife_dob" => $member->wife_dob,
-                    "wife_phone" => $member->wife_phone,
-                    "wife_qualification" => $member->wife_qualification,
-                    "wife_birth_place" => $member->wife_birth_place,
-                    "wife_job_designation" => $member->wife_job_designation,
-                    "wife_district" => $member->wife_district,
-                    "status" => $member->status,
-                    "approval_status" => $member->approval_status,
-                    "member_image" => $member_image,
-                    "created_at" => $member->created_at
-                    // Add other relevant member details here
-                ];
-            }
-
-            // Return the result
+        if ($members->isEmpty()) {
             return response()->json([
-                'message' => 'Members fetched successfully',
-                'success' => true,
-                'members' => $result
-            ], 200);
+                'message' => 'No members found for the specified native place',
+                'success' => false
+            ], 404);
         }
-    }
+        // Prepare the result
+        $result = [];
+        foreach ($members as $member) {
+            $member_image = !empty($member->member_image)
+                ? 'E:\wamp64\www\cvmv\cvmv\uploads\images\member_images/' . $member->member_image
+                : '';
+            $result[] = [
+                "mem_id" => $member->mem_id,
+                "first_name" => $member->first_name,
+                "last_name" => $member->last_name,
+                "phone" => $member->phone,
+                "gender" => $member->gender,
+                "date_of_birth" => $member->date_of_birth,
+                "father_name" => $member->father_name,
+                "mother_name" => $member->mother_name,
+                "qualification" => $member->qualification,
+                "job_designation" => $member->job_designation,
+                "marriage_date" => $member->marriage_date,
+                "blood_group" => $member->blood_group,
+                "vagaiyara" => $member->vagaiyara,
+                "kula_deivam" => $member->kula_deivam,
+                "temple_place" => $member->temple_place,
+                "district" => $member->district,
+                "native_place" => $member->native_place,
+                "address" => $member->address,
+                "wife_name" => $member->wife_name,
+                "wife_dob" => $member->wife_dob,
+                "wife_phone" => $member->wife_phone,
+                "wife_qualification" => $member->wife_qualification,
+                "wife_birth_place" => $member->wife_birth_place,
+                "wife_job_designation" => $member->wife_job_designation,
+                "wife_district" => $member->wife_district,
+                "status" => $member->status,
+                "approval_status" => $member->approval_status,
+                "member_image" => $member_image,
+                "created_at" => $member->created_at
+                // Add other relevant member details here
+            ];
+        }
 
+        // Return the result
+        return response()->json([
+            'message' => 'Members fetched successfully',
+            'success' => true,
+            'members' => $result
+        ], 200);
+    }
+}

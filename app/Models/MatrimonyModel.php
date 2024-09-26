@@ -37,6 +37,7 @@ class MatrimonyModel extends Model
             'mother_name',
             'mother_occupation',
             'mother_number',
+            'contact_detail',
             'j_rasi',
             'j_nakshatra',
             'j_dhosam',
