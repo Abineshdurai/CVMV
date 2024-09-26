@@ -1082,16 +1082,154 @@ class MatrimonyController extends Controller
 
 
 
-    public function Tsit_Cvmv_Filter_Matrimony(Request $request, $filter)
-    {
-        // Get the offset and limit from the request (default to 0 and 20 if not provided)
-        $offset = $request->input('offset', 0);
-        $limit = $request->input('limit', 20);
+    // public function Tsit_Cvmv_Filter_Matrimony(Request $request, $filter)
+    // {
+    //     // Get the offset and limit from the request (default to 0 and 20 if not provided)
+    //     $offset = $request->input('offset', 0);
+    //     $limit = $request->input('limit', 20);
 
-        // Define the columns to search for the filter
-        $columns = [
+    //     // Define the columns to search for the filter
+    //     $columns = [
+    //         'name',
+    //         'm_status',
+    //         'date_of_birth',
+    //         'blood_group',
+    //         'qualification',
+    //         'kula_deivam',
+    //         'temple_place',
+    //         'm_height',
+    //         'm_weight',
+    //         'm_color',
+    //         'district',
+    //         'native_place',
+    //         'address',
+    //         'gender',
+    //         'job_designation',
+    //         'job_location',
+    //         'job_annual_income',
+    //         'j_rasi',
+    //         'j_nakshatra',
+    //         'j_dhosam',
+    //         'no_of_brothers',
+    //         'no_of_sisters',
+    //         'm_count'
+    //     ];
+
+    //     // Build the query to fetch records based on the filter across multiple columns
+    //     $query = MatrimonyModel::where('mat_status', 'active');
+
+    //     foreach ($columns as $column) {
+    //         $query->orWhere($column, 'like', '%' . $filter . '%');
+    //     }
+
+    //     // Execute the query with pagination
+    //     $matrimony_records = $query
+    //         ->select(
+    //             'matri_user_id',
+    //             'matri_id',
+    //             'name',
+    //             'm_status',
+    //             'email',
+    //             'date_of_birth',
+    //             'blood_group',
+    //             'qualification',
+    //             'kula_deivam',
+    //             'temple_place',
+    //             'm_height',
+    //             'm_weight',
+    //             'm_color',
+    //             'district',
+    //             'native_place',
+    //             'address',
+    //             'gender',
+    //             'job_designation',
+    //             'job_location',
+    //             'job_annual_income',
+    //             'father_name',
+    //             'father_occupation',
+    //             'father_number',
+    //             'mother_name',
+    //             'mother_occupation',
+    //             'mother_number',
+    //             'j_rasi',
+    //             'j_nakshatra',
+    //             'j_dhosam',
+    //             'horoscope_attach',
+    //             'no_of_brothers',
+    //             'no_of_sisters',
+    //             'm_count'
+    //         )
+    //         ->offset($offset)   // Set the offset
+    //         ->limit($limit)     // Set the limit
+    //         ->get();
+
+    //     // Prepare matrimony details with images and horoscope attach path
+    //     $matrimony_details_with_images = $matrimony_records->map(function ($matrimony) {
+    //         $matrimony_images = MatrimonyImagesModel::where('matri_id', $matrimony->matri_id)
+    //             ->where('status', 'active')
+    //             ->select(
+    //                 'matri_img_id',
+    //                 'matri_image'
+    //             )
+    //             ->get();
+
+    //         $matri_images = $matrimony_images->map(function ($image) {
+    //             return [
+    //                 'matri_img_id' => $image->matri_img_id,
+    //                 'matri_image' => !empty($image->matri_image)
+    //                     ? 'https://tabsquareinfotech.com/App/Abinesh_be_work/tsit_cvmv/public/uploads/images/matrimony_images/' . $image->matri_image
+    //                     : ''
+    //             ];
+    //         });
+
+    //         $horoscope_attach_path = !empty($matrimony->horoscope_attach)
+    //             ? 'https://tabsquareinfotech.com/App/Abinesh_be_work/tsit_cvmv/public/uploads/images/horoscope_attach/' . $matrimony->horoscope_attach
+    //             : '';
+
+    //         // Return matrimony details along with images and horoscope attach path
+    //         return [
+    //             'matrimony_details' => $matrimony,
+    //             'horoscope_attach' => $horoscope_attach_path,
+    //             'matrimony_images' => $matri_images
+    //         ];
+    //     });
+
+    //     // Return the response with matrimony details
+    //     return response()->json([
+    //         "matrimony_records" => $matrimony_details_with_images,
+    //         "has_more_data" => $matrimony_records->count() == $limit  // Check if more records exist
+    //     ]);
+    // }
+
+
+
+    public function Tsit_Cvmv_Search_Matrimony(Request $request)
+{
+    // Get the offset and limit from the request (default to 0 and 20 if not provided)
+    $offset = $request->input('offset', 0);
+    $limit = $request->input('limit', 10);
+
+    // Get the search query from the request
+    $query = $request->input('search');
+
+    // Build the query to fetch records based on the search filter across multiple columns
+    $matrimonysQuery = MatrimonyModel::where('mat_status', 'active');
+
+    if (!empty($query)) {
+        $matrimonysQuery->where(function($q) use ($query) {
+            $q->where('name', 'LIKE', "$query%")
+              ->orWhere('matri_id', 'LIKE', "%$query");
+        });
+    }
+
+    // Execute the query with pagination
+    $matrimony_records = $matrimonysQuery
+        ->select(
+            'matri_user_id',
+            'matri_id',
             'name',
             'm_status',
+            'email',
             'date_of_birth',
             'blood_group',
             'qualification',
@@ -1107,99 +1245,62 @@ class MatrimonyController extends Controller
             'job_designation',
             'job_location',
             'job_annual_income',
+            'father_name',
+            'father_occupation',
+            'father_number',
+            'mother_name',
+            'mother_occupation',
+            'mother_number',
             'j_rasi',
             'j_nakshatra',
             'j_dhosam',
+            'horoscope_attach',
             'no_of_brothers',
             'no_of_sisters',
             'm_count'
-        ];
+        )
+        ->offset($offset)   // Set the offset
+        ->limit($limit)     // Set the limit
+        ->get();
 
-        // Build the query to fetch records based on the filter across multiple columns
-        $query = MatrimonyModel::where('mat_status', 'active');
-
-        foreach ($columns as $column) {
-            $query->orWhere($column, 'like', '%' . $filter . '%');
-        }
-
-        // Execute the query with pagination
-        $matrimony_records = $query
+    // Prepare matrimony details with images and horoscope attachment paths
+    $matrimony_details_with_images = $matrimony_records->map(function ($matrimony) {
+        $matrimony_images = MatrimonyImagesModel::where('matri_id', $matrimony->matri_id)
+            ->where('status', 'active')
             ->select(
-                'matri_user_id',
-                'matri_id',
-                'name',
-                'm_status',
-                'email',
-                'date_of_birth',
-                'blood_group',
-                'qualification',
-                'kula_deivam',
-                'temple_place',
-                'm_height',
-                'm_weight',
-                'm_color',
-                'district',
-                'native_place',
-                'address',
-                'gender',
-                'job_designation',
-                'job_location',
-                'job_annual_income',
-                'father_name',
-                'father_occupation',
-                'father_number',
-                'mother_name',
-                'mother_occupation',
-                'mother_number',
-                'j_rasi',
-                'j_nakshatra',
-                'j_dhosam',
-                'horoscope_attach',
-                'no_of_brothers',
-                'no_of_sisters',
-                'm_count'
+                'matri_img_id',
+                'matri_image'
             )
-            ->offset($offset)   // Set the offset
-            ->limit($limit)     // Set the limit
             ->get();
 
-        // Prepare matrimony details with images and horoscope attach path
-        $matrimony_details_with_images = $matrimony_records->map(function ($matrimony) {
-            $matrimony_images = MatrimonyImagesModel::where('matri_id', $matrimony->matri_id)
-                ->where('status', 'active')
-                ->select(
-                    'matri_img_id',
-                    'matri_image'
-                )
-                ->get();
-
-            $matri_images = $matrimony_images->map(function ($image) {
-                return [
-                    'matri_img_id' => $image->matri_img_id,
-                    'matri_image' => !empty($image->matri_image)
-                        ? 'https://tabsquareinfotech.com/App/Abinesh_be_work/tsit_cvmv/public/uploads/images/matrimony_images/' . $image->matri_image
-                        : ''
-                ];
-            });
-
-            $horoscope_attach_path = !empty($matrimony->horoscope_attach)
-                ? 'https://tabsquareinfotech.com/App/Abinesh_be_work/tsit_cvmv/public/uploads/images/horoscope_attach/' . $matrimony->horoscope_attach
-                : '';
-
-            // Return matrimony details along with images and horoscope attach path
+        $matri_images = $matrimony_images->map(function ($image) {
             return [
-                'matrimony_details' => $matrimony,
-                'horoscope_attach' => $horoscope_attach_path,
-                'matrimony_images' => $matri_images
+                'matri_img_id' => $image->matri_img_id,
+                'matri_image' => !empty($image->matri_image)
+                    ? 'https://tabsquareinfotech.com/App/Abinesh_be_work/tsit_cvmv/public/uploads/images/matrimony_images/' . $image->matri_image
+                    : ''
             ];
         });
 
-        // Return the response with matrimony details
-        return response()->json([
-            "matrimony_records" => $matrimony_details_with_images,
-            "has_more_data" => $matrimony_records->count() == $limit  // Check if more records exist
-        ]);
-    }
+        $horoscope_attach_path = !empty($matrimony->horoscope_attach)
+            ? 'https://tabsquareinfotech.com/App/Abinesh_be_work/tsit_cvmv/public/uploads/images/horoscope_attach/' . $matrimony->horoscope_attach
+            : '';
+
+        // Return matrimony details along with images and horoscope attach path
+        return [
+            'matrimony_details' => $matrimony,
+            'horoscope_attach' => $horoscope_attach_path,
+            'matrimony_images' => $matri_images
+        ];
+    });
+
+    // Return the response with matrimony details
+    return response()->json([
+        "matrimony_records" => $matrimony_details_with_images,
+        "has_more_data" => $matrimony_records->count() == $limit  // Check if more records exist
+    ]);
+}
+
 
 
 }
