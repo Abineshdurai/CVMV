@@ -381,6 +381,8 @@ class MembershipController extends Controller
     //     }
     // }
 
+
+
     public function validateToken(Request $request)
     {
         // Get both tokens from the request
